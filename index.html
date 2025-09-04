@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodTech Delivery</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            color: #000000;
+        }
+        .product-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .cart-item {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+            border: none;
+            transition: all 0.3s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+        }
+        .price {
+            color: #f97316 !important;
+            font-weight: 700 !important;
+            font-size: 1.25rem !important;
+        }
+        .cart-price {
+            color: #f97316 !important;
+            font-weight: 600 !important;
+        }
+        /* Стили для навигации по категориям */
+        .category-nav {
+            background: var(--tg-theme-bg-color, #ffffff);
+            border-bottom: 1px solid var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+        .category-btn {
+            flex-shrink: 0;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .category-btn.active {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
+            color: white;
+            border-color: #FF6B35;
+        }
+        .category-btn:not(.active) {
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+            color: var(--tg-theme-text-color, #000000);
+            border: 2px solid var(--tg-theme-secondary-bg-color, #f8f9fa);
+        }
+        .category-btn:not(.active):hover {
+            border-color: #FF6B35;
+        }
+        /* Адаптивность для мобильных */
+        @media (max-width: 640px) {
+            .category-nav {
+                padding: 10px 16px;
+            }
+            .category-btn {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+        }
+        /* Стили для модального окна печати */
+        .print-template {
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            white-space: pre-wrap;
+        }
+        /* Стили для уведомлений */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="max-w-md mx-auto bg-white min-h-screen">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 sticky top-0 z-50">
+            <div class="flex items-center justify-between">
+                <h1 class="text-xl font-bold">🍔 FoodTech Delivery</h1>
+                <div class="relative">
+                    <button id="cartBtn" class="btn-primary px-4 py-2 rounded-full flex items-center space-x-2">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span id="cartCount" class="bg-white text-orange-500 rounded-full px-2 py-1 text-xs font-bold">0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="mainContent" class="p-4">
+            <div class="mb-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Наше меню</h2>
+                <p class="text-gray-600">Выберите категорию и добавьте в корзину</p>
+            </div>
+
+            <!-- Навигация по категориям -->
+            <div class="category-nav sticky top-16 bg-white z-40 py-3 border-b -mx-4 px-4">
+                <div class="flex space-x-3 overflow-x-auto pb-1">
+                    <button class="category-btn active" data-category="all">Все</button>
+                    <button class="category-btn" data-category="burgers">🍔 Бургеры</button>
+                    <button class="category-btn" data-category="snacks">🍟 Закуски</button>
+                    <button class="category-btn" data-category="drinks">🥤 Напитки</button>
+                    <button class="category-btn" data-category="desserts">🧁 Десерты</button>
+                </div>
+            </div>
+
+            <!-- Products Grid -->
+            <div id="productsGrid" class="grid gap-4 mt-4">
+                <!-- Бургеры -->
+                <div class="product-card" data-category="burgers">
+                    <img src="https://via.placeholder.com/400x200/FF6B35/white?text=Чизбургер" alt="Чизбургер" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Чизбургер</h3>
+                        <p class="text-gray-600 text-sm mb-3">Сочная говяжья котлета, расплавленный сыр чеддер, свежий салат и томаты</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">350 ₽</span>
+                            <button onclick="addToCart('cheeseburger', 'Чизбургер', 350)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-category="burgers">
+                    <img src="https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=400&h=200&fit=crop&auto=format" alt="Чикенбургер" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Чикенбургер</h3>
+                        <p class="text-gray-600 text-sm mb-3">Хрустящая куриная котлета, сыр, салат, томаты и фирменный соус</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">320 ₽</span>
+                            <button onclick="addToCart('chickenburger', 'Чикенбургер', 320)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Закуски -->
+                <div class="product-card" data-category="snacks">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Картофель фри</h3>
+                        <p class="text-gray-600 text-sm mb-3">С золотистой корочкой, порция 150г</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">150 ₽</span>
+                            <button onclick="addToCart('fries', 'Картофель фри', 150)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-category="snacks">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Наггетсы</h3>
+                        <p class="text-gray-600 text-sm mb-3">6 штук с соусом на выбор</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">180 ₽</span>
+                            <button onclick="addToCart('nuggets', 'Наггетсы', 180)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Напитки -->
+                <div class="product-card" data-category="drinks">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Кола</h3>
+                        <p class="text-gray-600 text-sm mb-3">0.5л, охлаждённая</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">120 ₽</span>
+                            <button onclick="addToCart('cola', 'Кола', 120)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="product-card" data-category="drinks">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Вода</h3>
+                        <p class="text-gray-600 text-sm mb-3">0.5л, негазированная</p>
+                        <div class="flex items-center justify-between">
+                            <span class="price">80 ₽</span>
+                            <button onclick="addToCart('water', 'Вода', 80)" class="btn-primary text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-1"></i> В корзину
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Cart Modal -->
+        <div id="cartModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+            <div class="flex items-end justify-center min-h-screen p-4">
+                <div class="bg-white rounded-t-xl w-full max-w-md transform transition-all">
+                    <div class="p-4 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold">Корзина</h3>
+                            <button onclick="closeCart()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="cartItems" class="p-4 max-h-80 overflow-y-auto">
+                        <p class="text-gray-500 text-center py-8">Корзина пуста</p>
+                    </div>
+                    <div id="cartFooter" class="p-4 border-t bg-gray-50 hidden">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-lg font-semibold">Итого:</span>
+                            <span id="cartTotal" class="price">0 ₽</span>
+                        </div>
+                        <button onclick="showCheckout()" class="btn-primary w-full text-white py-3 rounded-lg text-lg font-semibold">
+                            Оформить заказ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkout Modal -->
+        <div id="checkoutModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl w-full max-w-md">
+                    <div class="p-4 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold">Оформление заказа</h3>
+                            <button onclick="closeCheckout()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <form id="checkoutForm" class="p-4">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Имя</label>
+                            <input type="text" id="customerName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-orange-500" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Телефон</label>
+                            <input type="tel" id="customerPhone" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-orange-500" required>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Адрес доставки</label>
+                            <textarea id="customerAddress" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-orange-500" rows="3" required></textarea>
+                        </div>
+                        <div class="text-center mb-4">
+                            <span class="text-lg">Сумма заказа: </span>
+                            <span id="finalTotal" class="price">0 ₽</span>
+                        </div>
+                        <button type="submit" class="btn-primary w-full text-white py-3 rounded-lg text-lg font-semibold">
+                            Подтвердить заказ
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Print Modal -->
+        <div id="printModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl w-full max-w-md">
+                    <div class="p-4 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold">Заказ для печати</h3>
+                            <button onclick="closePrintAndReturn()" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div id="printContent" class="print-template bg-gray-100 p-4 rounded-lg mb-4"></div>
+                        <div id="qrcode" class="flex justify-center mb-4"></div>
+                        <div class="flex space-x-2">
+                            <button onclick="printOrder()" class="btn-primary flex-1 text-white py-3 rounded-lg">
+                                <i class="fas fa-print mr-2"></i> Печать
+                            </button>
+                            <button onclick="copyOrderText()" class="bg-gray-500 text-white py-3 px-4 rounded-lg">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl w-full max-w-md text-center p-6">
+                    <div class="text-green-500 text-6xl mb-4">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">Заказ принят!</h3>
+                    <p class="text-gray-600 mb-4" id="successMessage"></p>
+                    <button onclick="closeSuccessAndReturn()" class="btn-primary w-full text-white py-3 rounded-lg text-lg font-semibold">
+                        Вернуться в меню
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram Web App initialization
+        const tg = window.Telegram?.WebApp;
+        
+        // Нумерация заказов
+        let orderCounter = parseInt(localStorage.getItem('orderCounter') || '0');
+        let currentOrder = null;
+
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            tg.enableClosingConfirmation();
+        }
+
+        // Cart state
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        let cartTotal = 0;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCartDisplay();
+            
+            // Get user data from Telegram
+            if (tg && tg.initDataUnsafe.user) {
+                const user = tg.initDataUnsafe.user;
+                document.getElementById('customerName').value = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+            }
+
+            // Инициализация фильтрации категорий
+            filterProducts('all');
+        });
+
+        // Генерация номера заказа
+        function generateOrderNumber() {
+            orderCounter++;
+            localStorage.setItem('orderCounter', orderCounter);
+            return orderCounter.toString().padStart(3, '0');
+        }
+
+        // Add to cart function
+        function addToCart(id, name, price) {
+            const existingItem = cart.find(item => item.id === id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ id, name, price, quantity: 1 });
+            }
+            
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartDisplay();
+            
+            // Show success feedback
+            showToast('Товар добавлен в корзину!');
+        }
+
+        // Remove from cart
+        function removeFromCart(id) {
+            cart = cart.filter(item => item.id !== id);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartDisplay();
+        }
+
+        // Update quantity
+        function updateQuantity(id, change) {
+            const item = cart.find(item => item.id === id);
+            if (item) {
+                item.quantity += change;
+                if (item.quantity <= 0) {
+                    removeFromCart(id);
+                } else {
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                }
+            }
+        }
+
+        // Update cart display
+        function updateCartDisplay() {
+            const cartCount = document.getElementById('cartCount');
+            const cartItems = document.getElementById('cartItems');
+            const cartFooter = document.getElementById('cartFooter');
+            const cartTotalSpan = document.getElementById('cartTotal');
+            
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            cartCount.textContent = totalItems;
+            cartTotalSpan.textContent = cartTotal + ' ₽';
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<p class="text-gray-500 text-center py-8">Корзина пуста</p>';
+                cartFooter.classList.add('hidden');
+            } else {
+                cartItems.innerHTML = cart.map(item => `
+                    <div class="cart-item flex items-center justify-between py-3 border-b">
+                        <div class="flex-1">
+                            <h4 class="font-semibold">${item.name}</h4>
+                            <p class="cart-price">${item.price} ₽</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="updateQuantity('${item.id}', -1)" class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span class="w-8 text-center font-semibold">${item.quantity}</span>
+                            <button onclick="updateQuantity('${item.id}', 1)" class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                cartFooter.classList.remove('hidden');
+            }
+        }
+
+        // Modal functions
+        function openCart() {
+            document.getElementById('cartModal').classList.remove('hidden');
+        }
+
+        function closeCart() {
+            document.getElementById('cartModal').classList.add('hidden');
+        }
+
+        function showCheckout() {
+            document.getElementById('finalTotal').textContent = cartTotal + ' ₽';
+            document.getElementById('checkoutModal').classList.remove('hidden');
+            closeCart();
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        function showPrintModal(order) {
+            currentOrder = order;
+            const printContent = document.getElementById('printContent');
+            const qrcodeDiv = document.getElementById('qrcode');
+            
+            // Генерируем текст для печати
+            printContent.innerHTML = generatePrintText(order);
+            
+            // Генерируем QR-код
+            qrcodeDiv.innerHTML = '';
+            QRCode.toCanvas(qrcodeDiv, `ORDER:${order.number}`, {
+                width: 150,
+                height: 150,
+                margin: 1
+            }, function(error) {
+                if (error) console.error(error);
+            });
+            
+            document.getElementById('printModal').classList.remove('hidden');
+        }
+
+        function closePrint() {
+            document.getElementById('printModal').classList.add('hidden');
+        }
+
+        function closePrintAndReturn() {
+            closePrint();
+            showSuccessModal(currentOrder);
+        }
+
+        function showSuccessModal(order) {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.textContent = `Ваш заказ #${order.number} принят! Сумма: ${order.total} ₽`;
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        function closeSuccessAndReturn() {
+            document.getElementById('successModal').classList.add('hidden');
+            // Возвращаемся к фильтрации всех товаров
+            filterProducts('all');
+        }
+
+        // Функция для фильтрации товаров по категориям
+        function filterProducts(category) {
+            const products = document.querySelectorAll('.product-card');
+            const buttons = document.querySelectorAll('.category-btn');
+            
+            // Обновляем активную кнопку
+            buttons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            
+            // Показываем/скрываем товары
+            products.forEach(product => {
+                if (category === 'all' || product.dataset.category === category) {
+                    product.style.display = 'block';
+                } else {
+                    product.style.display = 'none';
+                }
+            });
+        }
+
+        // Генерация текста для печати
+        function generatePrintText(order) {
+            const date = new Date().toLocaleString('ru-RU');
+            return `
+🍔 FoodTech Delivery
+-------------------
+ЗАКАЗ #${order.number}
+Дата: ${date}
+-------------------
+ТОВАРЫ:
+${order.items.map(item => `• ${item.name} × ${item.quantity} - ${item.price * item.quantity} ₽`).join('\n')}
+-------------------
+ИТОГО: ${order.total} ₽
+-------------------
+КЛИЕНТ: ${order.customer.name}
+ТЕЛЕФОН: ${order.customer.phone}
+АДРЕС: ${order.customer.address}
+-------------------
+СТАТУС: Принят
+            `.trim();
+        }
+
+        // Функции для работы с печатью
+        function printOrder() {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Заказ #${currentOrder.number}</title>
+                    <style>
+                        body { font-family: 'Courier New', monospace; line-height: 1.2; }
+                        @media print { body { margin: 0; padding: 20px; } }
+                    </style>
+                </head>
+                <body>
+                    <pre>${generatePrintText(currentOrder)}</pre>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        }
+
+        function copyOrderText() {
+            const text = generatePrintText(currentOrder);
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Текст скопирован в буфер!');
+            });
+        }
+
+        // Назначаем обработчики на кнопки категорий
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterProducts(btn.dataset.category);
+            });
+        });
+
+        // Event listeners
+        document.getElementById('cartBtn').addEventListener('click', openCart);
+
+        document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const orderNumber = generateOrderNumber();
+            const orderData = {
+                number: orderNumber,
+                items: cart,
+                total: cartTotal,
+                customer: {
+                    name: document.getElementById('customerName').value,
+                    phone: document.getElementById('customerPhone').value,
+                    address: document.getElementById('customerAddress').value
+                },
+                status: 'принят',
+                timestamp: new Date().toISOString()
+            };
+            
+            // Сохраняем заказ в историю
+            const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            orders.push(orderData);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            // Отправляем уведомления
+            sendNotifications(orderData);
+            
+            // Показываем модальное окно печати
+            showPrintModal(orderData);
+            
+            // Clear cart
+            cart = [];
+            localStorage.removeItem('cart');
+            updateCartDisplay();
+            
+            // Close checkout modal
+            closeCheckout();
+        });
+
+        // Отправка уведомлений
+        function sendNotifications(order) {
+            // Уведомление для клиента
+            const clientMessage = `✅ Заказ #${order.number} принят!\nСумма: ${order.total} ₽\nОжидайте доставку!`;
+            
+            // Уведомление для курьера
+            const courierMessage = `🚗 ДОСТАВКА #${order.number}\n📍 Адрес: ${order.customer.address}\n📦 Заказ: ${order.items.length} позиций\n💰 Сумма: ${order.total} ₽\n👤 Клиент: ${order.customer.name} ${order.customer.phone}`;
+            
+            // Уведомление для администратора
+            const adminMessage = `🆕 НОВЫЙ ЗАКАЗ #${order.number}\n💵 Сумма: ${order.total} ₽\n👤 Клиент: ${order.customer.name}\n📞 Телефон: ${order.customer.phone}`;
+            
+            // Отправка через Telegram Web App
+            if (tg) {
+                tg.sendData(JSON.stringify({
+                    type: "new_order",
+                    order: order,
+                    notifications: {
+                        client: clientMessage,
+                        courier: courierMessage,
+                        admin: adminMessage
+                    }
+                }));
+                
+                // Показываем уведомление клиенту
+                tg.showPopup({
+                    title: "Заказ принят!",
+                    message: `Ваш заказ #${order.number} принят в обработку`
+                });
+            }
+            
+            // Показываем уведомления на экране
+            showNotification(`📧 Клиенту: ${clientMessage}`);
+            showNotification(`🚗 Курьеру: ${courierMessage}`);
+            showNotification(`👨‍💼 Вам: ${adminMessage}`);
+            
+            // Логируем в консоль
+            console.log('📧 Уведомление для клиента:', clientMessage);
+            console.log('🚗 Уведомление для курьера:', courierMessage);
+            console.log('👨‍💼 Уведомление для админа:', adminMessage);
+        }
+
+        // Показать уведомление на экране
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 left-4 right-4 bg-green-500 text-white p-4 rounded-lg z-50 transform transition-all duration-300';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateY(-100px)';
+                toast.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        // Handle Telegram Web App events
+        if (tg) {
+            tg.onEvent('mainButtonClicked', function() {
+                if (cart.length > 0) {
+                    showCheckout();
+                }
+            });
+            
+            // Show main button when cart has items
+            function updateMainButton() {
+                if (cart.length > 0) {
+                    tg.MainButton.setText(`Заказать (${cartTotal} ₽)`);
+                    tg.MainButton.show();
+                } else {
+                    tg.MainButton.hide();
+                }
+            }
+            
+            // Update main button on cart changes
+            const originalUpdateCartDisplay = updateCartDisplay;
+            updateCartDisplay = function() {
+                originalUpdateCartDisplay();
+                updateMainButton();
+            };
+        }
+
+        // Close modals on outside click
+        document.getElementById('cartModal').addEventListener('click', function(e) {
+            if (e.target === this) closeCart();
+        });
+        
+        document.getElementById('checkoutModal').addEventListener('click', function(e) {
+            if (e.target === this) closeCheckout();
+        });
+        
+        document.getElementById('printModal').addEventListener('click', function(e) {
+            if (e.target === this) closePrint();
+        });
+        
+        document.getElementById('successModal').addEventListener('click', function(e) {
+            if (e.target === this) closeSuccessAndReturn();
+        });
+    </script>
+</body>
+</html>

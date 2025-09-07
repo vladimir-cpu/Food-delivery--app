@@ -606,7 +606,7 @@
 
       try {
         // 🔁 Отправляем заказ на твой прокси-сервер
-        const response = await fetch('https://food-order-proxy.vercel.app/api/order', {
+        const response = await fetch('/.netlify/functions/order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

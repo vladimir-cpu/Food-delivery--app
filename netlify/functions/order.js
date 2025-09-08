@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
-  // CORS для локального тестирования
+  
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,

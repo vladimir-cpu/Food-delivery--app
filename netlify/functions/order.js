@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+      const fetch = require('node-fetch');
 
 exports.handler = async function(event, context) {
   // ⚡ CORS - разрешаем запросы из браузеров
@@ -80,19 +80,12 @@ async function sendToTelegram(botToken, chatId, text) {
       disable_web_page_preview: true
     })
   });
-  return await response.json();
-}    } else {
-      return {
-        statusCode: 500,
-        headers: { 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: result.description })
-      };
-    }
-  } catch (error) {
-    return {
-      statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: error.message })
-    };
+  
+  const result = await response.json();
+  
+  if (!result.ok) {
+    throw new Error(`Telegram API error: ${result.description}`);
   }
-};
+  
+  return result;
+}

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: food-delivery-app
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        fromSecret: BOT_TOKEN
+    plan: free

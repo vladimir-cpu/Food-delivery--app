@@ -5,5 +5,5 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
-  - key: BOT_TOKEN
-    value: your_bot_token_here
+      - key: BOT_TOKEN
+        value: your_bot_token_here

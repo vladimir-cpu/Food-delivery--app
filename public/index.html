@@ -590,65 +590,64 @@
 
     // === ОТПРАВКА ЗАКАЗА ===
     async function submitOrder(e) {
-      e.preventDefault();
+  e.preventDefault();
 
-      const name = document.getElementById('user-name').value.trim();
-      const phone = document.getElementById('user-phone').value.trim();
-      const address = document.getElementById('user-address').value.trim();
-      const note = document.getElementById('user-note').value.trim();
-      if (!name || !phone || !address) {
-        return alert('Заполните все поля!');
-      }
+  const name = document.getElementById('user-name').value.trim();
+  const phone = document.getElementById('user-phone').value.trim();
+  const address = document.getElementById('user-address').value.trim();
+  const note = document.getElementById('user-note').value.trim(); // ← УЖЕ ЕСТЬ!
 
-      saveUser(name, phone, address);
+  if (!name || !phone || !address) {
+    return alert('Заполните все поля!');
+  }
 
-      const total = cart.reduce((s, i) => s + i.price, 0);
-      const userId = 413921406; 
+  saveUser(name, phone, address);
 
-      // Показываем индикатор загрузки
-      document.getElementById('loading').style.display = 'flex';
+  const total = cart.reduce((s, i) => s + i.price, 0);
+  const userId = 413921406;
 
-      try {
-        // 🔁 Отправляем заказ на твой прокси-сервер
-        const response = await fetch('/.netlify/functions/order', {
+  document.getElementById('loading').style.display = 'flex';
 
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            phone,
-            address,
-            items: cart,
-            total,
-            user_id: userId
-          })
-        });
+  try {
+    const response = await fetch('/.netlify/functions/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        phone,
+        address,
+        note, // ← ДОБАВЛЕНО!
+        items: cart,
+        total,
+        user_id: userId
+      })
+    });
 
-        const result = await response.json();
+    const result = await response.json();
 
-        if (result.success) {
-          alert('✅ Заказ отправлен! Ожидайте звонка.');
-        } else {
-          alert('❌ Ошибка: ' + result.error);
-        }
-      } catch (err) {
-        alert('❌ Не удалось отправить заказ: ' + err.message + '\n\nСкопируйте заказ вручную:');
-        const orderText = `Имя: ${name}\nТелефон: ${phone}\nАдрес: ${address}\nСумма: ${total} ₽\nБлюда: ${cart.map(i => i.name).join(', ')}`;
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(orderText).then(() => {
-            alert('📋 Текст заказа скопирован в буфер обмена!');
-          });
-        } else {
-          alert('📋 Скопируйте вручную:\n\n' + orderText);
-        }
-      } finally {
-        document.getElementById('loading').style.display = 'none';
-        cart = [];
-        updateCartUI();
-        saveCart();
-        closeOrderForm();
-      }
+    if (result.success) {
+      alert('✅ Заказ отправлен! Ожидайте звонка.');
+    } else {
+      alert('❌ Ошибка: ' + result.error);
     }
+  } catch (err) {
+    alert('❌ Не удалось отправить заказ: ' + err.message + '\n\nСкопируйте заказ вручную:');
+    const orderText = `Имя: ${name}\nТелефон: ${phone}\nАдрес: ${address}\nПримечание: ${note}\nСумма: ${total} ₽\nБлюда: ${cart.map(i => i.name).join(', ')}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(orderText).then(() => {
+        alert('📋 Текст заказа скопирован в буфер обмена!');
+      });
+    } else {
+      alert('📋 Скопируйте вручную:\n\n' + orderText);
+    }
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    cart = [];
+    updateCartUI();
+    saveCart();
+    closeOrderForm();
+  }
+}
   </script>
 
 </body>
